@@ -1,11 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, ArrowLeft, ArrowRight, Check, CircleAlert, Clock3, FileBarChart2, LoaderCircle, RefreshCw, Square, X } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowRight, Bot, Check, CheckCheck, CircleAlert, Clock3, FileBarChart2, LoaderCircle, RefreshCw, Square, TriangleAlert, X } from 'lucide-react'
 import { format } from 'date-fns'
 import api from '../lib/api'
 import type { AuditResult, Execution, ExecutionLog, Project, Task } from '../lib/types'
-import { Button, EmptyState, Field, FormError, Input, LoadingBlock, PageHeader, SectionTitle, Select, StatusTag, Textarea } from '../components/ui'
+import { Avatar, Button, EmptyState, Field, FormError, Input, LoadingBlock, PageHeader, SectionTitle, Select, StatusTag, Textarea } from '../components/ui'
 
 export function AuditSetupPage() {
   const navigate = useNavigate()
@@ -67,6 +67,7 @@ export function ExecutionPage() {
   const queryClient = useQueryClient()
   const [eventLogs, setEventLogs] = useState<ExecutionLog[]>([])
   const [streamState, setStreamState] = useState('connecting')
+  const logEnd = useRef<HTMLDivElement | null>(null)
   const executionQuery = useQuery({
     queryKey: ['execution', executionId],
     queryFn: async () => (await api.get<{ execution: Execution }>(`/executions/${executionId}`)).data.execution,
@@ -121,6 +122,13 @@ export function ExecutionPage() {
     return () => { active = false; controller.abort() }
   }, [executionId, queryClient])
 
+  const logCount = eventLogs.length || execution?.executionLogs?.length || 0
+  useEffect(() => {
+    const node = logEnd.current
+    const list = node?.parentElement
+    if (node && list) list.scrollTo({ top: list.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }, [logCount])
+
   const cancel = useMutation({
     mutationFn: async () => api.post(`/executions/${executionId}/cancel`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['execution', executionId] }),
@@ -162,10 +170,23 @@ export function ExecutionPage() {
       </div>)}</div>
     </section>}
 
-    <section className="work-surface execution-log-surface"><SectionTitle title="Execution log" trailing={<span className="monospace-count">{logs.length} recorded events</span>} />
-      {logs.length ? <div className="execution-log-list" role="log" aria-live="polite">{logs.map((log, index) => <div className={`execution-log-row level-${log.level}`} key={log.id || `${log.createdAt}-${index}`}>
-        <time>{log.createdAt ? format(new Date(log.createdAt), 'HH:mm:ss') : '—'}</time><span className="log-level">{log.level}</span>{log.agentName && <span className="log-agent">{agentLabels[log.agentName] || log.agentName}</span>}<span className="log-message">{log.message}</span>
-      </div>)}</div> : <div className="execution-log-empty">{execution.status === 'queued' ? 'Waiting for a worker to pick up this task.' : execution.status === 'running' ? 'The worker is preparing the workflow.' : 'No execution log entries were recorded.'}</div>}
+    <section className="work-surface execution-log-surface"><SectionTitle title="Agent conversation" trailing={<span className="monospace-count">{logs.length} recorded events</span>} />
+      {logs.length ? <div className="agent-chat" role="log" aria-live="polite" aria-label="Execution log">{logs.map((log, index) => {
+        const previous = logs[index - 1]
+        const grouped = previous && previous.agentName === log.agentName
+        const speaker = log.agentName ? agentLabels[log.agentName] || log.agentName : 'Orchestrator'
+        const tone = log.agentName ? Object.keys(agentLabels).indexOf(log.agentName) + 1 : 0
+        return <div className={`chat-line level-${log.level} ${grouped ? 'is-grouped' : ''}`} key={log.id || `${log.createdAt}-${index}`}>
+          <span className="chat-avatar">{!grouped && <Avatar name={speaker} size={34} tone={tone} icon={log.agentName ? undefined : <Bot size={16} />} />}</span>
+          <div className="chat-content">
+            {!grouped && <div className="chat-speaker"><strong>{speaker}</strong><time>{log.createdAt ? format(new Date(log.createdAt), 'HH:mm:ss') : '—'}</time></div>}
+            <div className="chat-bubble"><span className="log-level">{log.level === 'success' ? <CheckCheck size={12} /> : log.level === 'error' ? <X size={12} /> : log.level === 'warning' ? <TriangleAlert size={12} /> : null}{log.level}</span><span className="log-message">{log.message}</span>{grouped && log.createdAt && <time className="chat-inline-time">{format(new Date(log.createdAt), 'HH:mm:ss')}</time>}</div>
+          </div>
+        </div>
+      })}
+        {!finished && <div className="chat-line typing-line" aria-hidden="true"><span className="chat-avatar"><Avatar name="Agents" size={34} tone={2} icon={<Bot size={16} />} /></span><div className="chat-content"><div className="chat-bubble typing-bubble"><span className="typing-dots"><i /><i /><i /></span><span>{agents.filter((agent) => agent.status === 'running').map((agent) => agentLabels[agent.agentName] || agent.agentName).join(', ') || 'The worker'} {agents.filter((agent) => agent.status === 'running').length > 1 ? 'are' : 'is'} working…</span></div></div></div>}
+        <div ref={logEnd} />
+      </div> : <div className="execution-log-empty">{execution.status === 'queued' ? 'Waiting for a worker to pick up this task.' : execution.status === 'running' ? 'The worker is preparing the workflow.' : 'No execution log entries were recorded.'}</div>}
       {!finished && <div className="execution-live-note"><LoaderCircle size={14} className="spin" /> Status changes are recorded as the workflow progresses.</div>}
     </section>
   </div>

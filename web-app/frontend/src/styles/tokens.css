@@ -1,0 +1,153 @@
+/*
+ * Design tokens — premium 3D dashboard language.
+ * Brand palette: primary #633BFA, deep #3510B8, electric #7B35FF,
+ * lavender #C7A8FF, soft pink #E8B6FF on a #F5F4FF canvas.
+ * Every component reads these variables; never hard-code colors in components.
+ */
+:root {
+  font-family: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
+  color-scheme: light;
+
+  /* Brand */
+  --brand-primary: #633bfa;
+  --brand-deep: #3510b8;
+  --brand-electric: #7b35ff;
+  --brand-lavender: #c7a8ff;
+  --brand-pink: #e8b6ff;
+
+  /* Surfaces & text */
+  --canvas: #f5f4ff;
+  --surface: #fff;
+  --surface-soft: #faf9ff;
+  --surface-strong: #efecff;
+  --ink: #17152b;
+  --ink-soft: #6b6984;   /* body secondary — darkened from #77758E for AA on small text */
+  --ink-faint: #77758e;  /* captions, metadata */
+  --ink-muted: #77758e;
+  --rule: #e9e6f5;
+  --rule-strong: #d8d2ee;
+
+  /* Interaction */
+  --primary: #633bfa;
+  --primary-hover: #5228ea;
+  --on-primary: #fff;
+  --selection: #efeaff;
+  --focus-ring: 0 0 0 4px rgb(99 59 250 / 18%);
+
+  /* Semantic */
+  --success: #138a5b;
+  --success-bg: #e8f7f0;
+  --warning: #9a5b00;
+  --warning-bg: #fff4dc;
+  --error: #c4335f;
+  --error-bg: #ffeef3;
+
+  /* Gradients — use strategically: active nav, primary buttons, hero panels, art */
+  --grad-primary: linear-gradient(135deg, #7b35ff 0%, #633bfa 48%, #3510b8 100%);
+  --grad-primary-soft: linear-gradient(135deg, #f3edff 0%, #ebe4ff 100%);
+  --grad-hero:
+    radial-gradient(60% 75% at 82% 8%, rgb(232 182 255 / 70%) 0%, rgb(232 182 255 / 0%) 60%),
+    radial-gradient(55% 60% at 62% 30%, rgb(255 140 170 / 35%) 0%, rgb(255 140 170 / 0%) 60%),
+    radial-gradient(70% 90% at 0% 100%, rgb(123 53 255 / 75%) 0%, rgb(123 53 255 / 0%) 65%),
+    linear-gradient(140deg, #2c0ca0 0%, #3d17c9 45%, #6a2cf5 100%);
+  --grad-dark-card:
+    radial-gradient(80% 60% at 70% 20%, rgb(199 168 255 / 35%), transparent 60%),
+    linear-gradient(160deg, #241067 0%, #1a0a4f 100%);
+  --grad-surface: linear-gradient(160deg, #fff 0%, #fbfaff 100%);
+  --grad-mesh:
+    radial-gradient(40vw 40vw at 92% -8%, rgb(199 168 255 / 38%), transparent 70%),
+    radial-gradient(34vw 34vw at -6% 30%, rgb(232 182 255 / 26%), transparent 70%),
+    radial-gradient(44vw 30vw at 50% 110%, rgb(123 53 255 / 12%), transparent 70%);
+
+  /* Elevation — purple-tinted, layered for realistic depth */
+  --shadow-xs: 0 1px 2px rgb(53 16 184 / 6%);
+  --shadow-sm: 0 6px 16px -8px rgb(53 16 184 / 14%), 0 1px 3px rgb(53 16 184 / 6%);
+  --shadow-md: 0 22px 44px -22px rgb(53 16 184 / 26%), 0 6px 14px -8px rgb(53 16 184 / 10%);
+  --shadow-lg: 0 36px 70px -30px rgb(53 16 184 / 38%), 0 14px 28px -16px rgb(53 16 184 / 16%);
+  --shadow-glow: 0 14px 30px -10px rgb(99 59 250 / 60%);
+  --shadow-menu: 0 26px 60px -20px rgb(35 16 110 / 30%), 0 8px 18px -8px rgb(35 16 110 / 14%);
+  --inner-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
+
+  /* Glass */
+  --glass-bg: rgb(255 255 255 / 70%);
+  --glass-strong: rgb(255 255 255 / 86%);
+  --glass-border: rgb(255 255 255 / 75%);
+  --glass-blur: blur(20px) saturate(170%);
+
+  /* Shape */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+
+  /* Type scale */
+  --text-2xs: 11px; --text-xs: 12px; --text-sm: 13px; --text-md: 14px; --text-lg: 17px; --text-xl: 22px; --text-display: 44px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: .16s;
+  --dur-med: .28s;
+
+  /* Layout */
+  --sidebar-width: 264px;
+  --topbar-height: 76px;
+  --page-gutter: 32px;
+
+  /* Charts */
+  --chart-completed: #633bfa;
+  --chart-failed: #e0608a;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --canvas: #0e0c1d;
+  --surface: #191630;
+  --surface-soft: #201c3a;
+  --surface-strong: #2a2549;
+  --ink: #f4f1ff;
+  --ink-soft: #bcb6da;
+  --ink-faint: #a29cc4;
+  --ink-muted: #a29cc4;
+  --rule: #2e2950;
+  --rule-strong: #443d6c;
+  --primary: #9c80ff;
+  --primary-hover: #b6a1ff;
+  --on-primary: #fff;
+  --selection: #2b2453;
+  --focus-ring: 0 0 0 4px rgb(156 128 255 / 26%);
+  --success: #62d3a1;
+  --success-bg: #163328;
+  --warning: #f0c36d;
+  --warning-bg: #372b17;
+  --error: #ff8fb0;
+  --error-bg: #3c1c2b;
+  --grad-primary-soft: linear-gradient(135deg, #2b2453 0%, #241e48 100%);
+  --grad-surface: linear-gradient(160deg, #1b1833 0%, #17142d 100%);
+  --grad-mesh:
+    radial-gradient(40vw 40vw at 92% -8%, rgb(123 53 255 / 26%), transparent 70%),
+    radial-gradient(34vw 34vw at -6% 30%, rgb(196 107 255 / 14%), transparent 70%),
+    radial-gradient(44vw 30vw at 50% 110%, rgb(99 59 250 / 16%), transparent 70%);
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-sm: 0 6px 16px -8px rgb(0 0 0 / 50%), 0 1px 3px rgb(0 0 0 / 30%);
+  --shadow-md: 0 22px 44px -22px rgb(0 0 0 / 65%), 0 6px 14px -8px rgb(0 0 0 / 40%);
+  --shadow-lg: 0 36px 70px -30px rgb(0 0 0 / 75%), 0 14px 28px -16px rgb(0 0 0 / 45%);
+  --shadow-glow: 0 14px 32px -10px rgb(123 53 255 / 70%);
+  --shadow-menu: 0 26px 60px -20px rgb(0 0 0 / 70%), 0 8px 18px -8px rgb(0 0 0 / 40%);
+  --inner-highlight: inset 0 1px 0 rgb(255 255 255 / 6%);
+  --glass-bg: rgb(25 22 48 / 68%);
+  --glass-strong: rgb(25 22 48 / 88%);
+  --glass-border: rgb(255 255 255 / 8%);
+  --chart-completed: #9c80ff;
+  --chart-failed: #ff8fb0;
+}
