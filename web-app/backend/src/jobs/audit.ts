@@ -146,15 +146,32 @@ export async function runAudit(taskId: string, executionId: string, workspaceId:
 
   await getProviderConfig(workspaceId, input.provider);
   await logExecution(executionId, 'Validating target website URL and fetching crawl evidence');
-  const crawl = await analyzePage(url, taskId);
-  const competitorUrls = Array.isArray(input.competitorUrls)
-    ? input.competitorUrls.slice(0, 5).map(String)
-    : project.competitors.map((competitor) => competitor.url).slice(0, 5);
+  let crawl;
+  try {
+    crawl = await analyzePage(url, taskId);
+  } catch (error: any) {
+    const errorMsg = error?.message || 'Failed to crawl website';
+    await logExecution(executionId, `Website crawl error: ${errorMsg}`, 'error');
+    throw new Error(`Target website crawl failed for ${url}: ${errorMsg}`);
+  }
+
+  const rawCompetitors = Array.isArray(input.competitorUrls)
+    ? input.competitorUrls.flatMap((u: unknown) => String(u).split(/[\n,]+/))
+    : project.competitors.map((competitor) => competitor.url);
+  const competitorUrls = rawCompetitors
+    .map((u) => u.trim())
+    .filter((u) => Boolean(u) && /^https?:\/\//i.test(u))
+    .slice(0, 5);
+
   let competitorEvidence: Array<Record<string, unknown>> = [];
   if (competitorUrls.length) {
-    await logExecution(executionId, `Scanning ${competitorUrls.length} user-supplied competitor site${competitorUrls.length === 1 ? '' : 's'}`);
-    const scanned = await scanCompetitors(competitorUrls, taskId);
-    competitorEvidence = scanned.results;
+    await logExecution(executionId, `Scanning ${competitorUrls.length} competitor site${competitorUrls.length === 1 ? '' : 's'}`);
+    try {
+      const scanned = await scanCompetitors(competitorUrls, taskId);
+      competitorEvidence = scanned.results;
+    } catch (error: any) {
+      await logExecution(executionId, `Competitor scanning encountered an issue: ${error?.message || 'unknown error'}. Continuing audit with primary site evidence.`, 'warning');
+    }
   }
 
   await logExecution(executionId, 'Starting five specialist agents in parallel');
@@ -227,7 +244,10 @@ export async function runAudit(taskId: string, executionId: string, workspaceId:
 
   const resultMap = Object.fromEntries(outcomes) as Partial<Record<AuditAgentName, AgentOutcome>>;
   const successfulAgents = Object.values(resultMap).filter((outcome) => outcome?.status === 'completed').length;
-  if (successfulAgents === 0) throw new Error('All five specialist agents failed. Review execution errors and retry after correcting configuration.');
+  if (successfulAgents === 0) {
+    const primaryReason = outcomes.map(([, outcome]) => outcome.error).find(Boolean);
+    throw new Error(`Specialist agents could not complete analysis${primaryReason ? `: ${primaryReason}` : ''}`);
+  }
 
   const { scores, weighted, coverage } = categoryScores(resultMap);
   const recommendations = recommendationsFrom(resultMap);
@@ -317,13 +337,31 @@ export async function runSpecialistAgent(taskId: string, executionId: string, wo
   if (!url) throw new Error('Add a website URL to this project before running this specialist agent');
   await getProviderConfig(workspaceId, input.provider);
   await logExecution(executionId, `Validating website before starting ${agent.label}`);
-  const crawl = await analyzePage(url, taskId);
-  const competitorUrls = Array.isArray(input.competitorUrls)
-    ? input.competitorUrls.slice(0, 5).map(String)
-    : project.competitors.map((competitor) => competitor.url).slice(0, 5);
-  const competitorScans = agent.name === 'competitive' && competitorUrls.length
-    ? (await scanCompetitors(competitorUrls, taskId)).results
-    : [];
+  let crawl;
+  try {
+    crawl = await analyzePage(url, taskId);
+  } catch (error: any) {
+    const errorMsg = error?.message || 'Failed to crawl website';
+    await logExecution(executionId, `Website crawl error: ${errorMsg}`, 'error');
+    throw new Error(`Target website crawl failed for ${url}: ${errorMsg}`);
+  }
+
+  const rawCompetitors = Array.isArray(input.competitorUrls)
+    ? input.competitorUrls.flatMap((u: unknown) => String(u).split(/[\n,]+/))
+    : project.competitors.map((competitor) => competitor.url);
+  const competitorUrls = rawCompetitors
+    .map((u) => u.trim())
+    .filter((u) => Boolean(u) && /^https?:\/\//i.test(u))
+    .slice(0, 5);
+
+  let competitorScans: Array<Record<string, unknown>> = [];
+  if (agent.name === 'competitive' && competitorUrls.length) {
+    try {
+      competitorScans = (await scanCompetitors(competitorUrls, taskId)).results;
+    } catch (error: any) {
+      await logExecution(executionId, `Competitor scanning encountered an issue: ${error?.message || 'unknown error'}. Continuing with primary site evidence.`, 'warning');
+    }
+  }
   const executionAgent = await prisma.agentExecution.findFirst({ where: { executionId, agentName: agent.name } });
   if (!executionAgent) throw new Error('Specialist execution record was missing');
   await prisma.agentExecution.update({ where: { id: executionAgent.id }, data: { status: 'running', startedAt: new Date() } });

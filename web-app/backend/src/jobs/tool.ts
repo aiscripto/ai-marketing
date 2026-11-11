@@ -16,9 +16,13 @@ function titleCase(value: string): string {
 
 function resolveUrls(input: Record<string, any>, project: { websiteUrl: string | null; competitors: Array<{ url: string }> }) {
   const url = String(input.websiteUrl || project.websiteUrl || '').trim();
-  const competitorUrls = Array.isArray(input.competitorUrls)
-    ? input.competitorUrls.slice(0, 10).map(String)
-    : project.competitors.map((competitor) => competitor.url).slice(0, 10);
+  const rawCompetitors = Array.isArray(input.competitorUrls)
+    ? input.competitorUrls.flatMap((u: unknown) => String(u).split(/[\n,]+/))
+    : project.competitors.map((competitor) => competitor.url);
+  const competitorUrls = rawCompetitors
+    .map((u) => u.trim())
+    .filter((u) => Boolean(u) && /^https?:\/\//i.test(u))
+    .slice(0, 10);
   return { url, competitorUrls };
 }
 
@@ -84,13 +88,23 @@ export async function runMarketingTool(taskId: string, executionId: string, work
   let websiteEvidence: Record<string, unknown> | null = null;
   if (url && siteTools.has(tool)) {
     await logExecution(executionId, 'Fetching source website and checking technical signals');
-    const scanned = await analyzePage(url, taskId);
-    websiteEvidence = { url: scanned.url, data: scanned.data };
+    try {
+      const scanned = await analyzePage(url, taskId);
+      websiteEvidence = { url: scanned.url, data: scanned.data };
+    } catch (error: any) {
+      const errorMsg = error?.message || 'Failed to crawl website';
+      await logExecution(executionId, `Website crawl error: ${errorMsg}`, 'error');
+      throw new Error(`Target website crawl failed for ${url}: ${errorMsg}`);
+    }
   }
   let competitorEvidence: Array<Record<string, unknown>> = [];
   if (tool === 'competitors' && competitorUrls.length) {
     await logExecution(executionId, `Scanning ${competitorUrls.length} explicit competitor site${competitorUrls.length === 1 ? '' : 's'}`);
-    competitorEvidence = (await scanCompetitors(competitorUrls, taskId)).results;
+    try {
+      competitorEvidence = (await scanCompetitors(competitorUrls, taskId)).results;
+    } catch (error: any) {
+      await logExecution(executionId, `Competitor scanning encountered an issue: ${error?.message || 'unknown error'}. Continuing with primary site analysis.`, 'warning');
+    }
   }
 
   let socialPlan: Record<string, unknown> | null = null;

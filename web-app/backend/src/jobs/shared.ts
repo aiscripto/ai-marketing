@@ -79,7 +79,18 @@ export function normalizeScore(value: unknown): number | null {
 }
 
 export function safeErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message.slice(0, 1000);
+  if (error instanceof Error) {
+    const cause = (error as any).cause;
+    const causeMsg = cause instanceof Error ? cause.message : (typeof cause === 'string' ? cause : '');
+    const baseMsg = error.message;
+    if (baseMsg === 'fetch failed') {
+      return `Network connection failed${causeMsg ? `: ${causeMsg}` : ' (could not reach external service or worker)'}`;
+    }
+    if (causeMsg && !baseMsg.includes(causeMsg)) {
+      return `${baseMsg} (${causeMsg})`.slice(0, 1000);
+    }
+    return baseMsg.slice(0, 1000);
+  }
   return 'Execution failed with an unknown error';
 }
 

@@ -1,14 +1,24 @@
-const workerUrl = (process.env.PYTHON_WORKER_URL || 'http://localhost:8000').replace(/\/$/, '');
+function getWorkerUrl(): string {
+  return (process.env.PYTHON_WORKER_URL || 'http://localhost:8100').replace(/\/$/, '');
+}
 
 async function postJson<T>(path: string, payload: unknown): Promise<T> {
   const workerKey = process.env.WORKER_API_KEY;
-  if (!workerKey) throw new Error('Python worker authentication is not configured');
-  const response = await fetch(`${workerUrl}${path}`, {
-    method: 'POST',
-    signal: AbortSignal.timeout(60_000),
-    headers: { 'Content-Type': 'application/json', 'X-Worker-Key': workerKey },
-    body: JSON.stringify(payload),
-  });
+  if (!workerKey) throw new Error('Python worker authentication is not configured in WORKER_API_KEY');
+  const workerUrl = getWorkerUrl();
+  let response: Response;
+  try {
+    response = await fetch(`${workerUrl}${path}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(60_000),
+      headers: { 'Content-Type': 'application/json', 'X-Worker-Key': workerKey },
+      body: JSON.stringify(payload),
+    });
+  } catch (error: any) {
+    const causeMsg = error?.cause?.message || error?.message || 'connection failed';
+    throw new Error(`Unable to reach Python worker at ${workerUrl}${causeMsg ? ` (${causeMsg})` : ''}. Please ensure python-worker service is active.`);
+  }
+
   if (!response.ok) {
     const data = await response.json().catch(() => ({})) as { detail?: string };
     throw new Error(data.detail || `Python worker returned HTTP ${response.status}`);
@@ -27,12 +37,19 @@ export function scanCompetitors(urls: string[], taskId?: string) {
 export async function extractPdfText(file: Buffer, fileName: string): Promise<string> {
   const workerKey = process.env.WORKER_API_KEY;
   if (!workerKey) throw new Error('Python worker authentication is not configured');
-  const response = await fetch(`${workerUrl}/extract-pdf-text`, {
-    method: 'POST',
-    signal: AbortSignal.timeout(60_000),
-    headers: { 'Content-Type': 'application/pdf', 'X-Worker-Key': workerKey, 'X-File-Name': fileName },
-    body: file,
-  });
+  const workerUrl = getWorkerUrl();
+  let response: Response;
+  try {
+    response = await fetch(`${workerUrl}/extract-pdf-text`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(60_000),
+      headers: { 'Content-Type': 'application/pdf', 'X-Worker-Key': workerKey, 'X-File-Name': fileName },
+      body: file,
+    });
+  } catch (error: any) {
+    const causeMsg = error?.cause?.message || error?.message || 'connection failed';
+    throw new Error(`Unable to reach Python worker at ${workerUrl}${causeMsg ? ` (${causeMsg})` : ''}`);
+  }
   if (!response.ok) {
     const data = await response.json().catch(() => ({})) as { detail?: string };
     throw new Error(data.detail || `PDF extraction returned HTTP ${response.status}`);
@@ -51,12 +68,19 @@ export function generateSocialCalendar(topic: string, brand: string | undefined,
 export async function generatePdf(reportData: Record<string, unknown>, title: string): Promise<Buffer> {
   const workerKey = process.env.WORKER_API_KEY;
   if (!workerKey) throw new Error('Python worker authentication is not configured');
-  const response = await fetch(`${workerUrl}/generate-pdf-report`, {
-    method: 'POST',
-    signal: AbortSignal.timeout(60_000),
-    headers: { 'Content-Type': 'application/json', 'X-Worker-Key': workerKey },
-    body: JSON.stringify({ report_data: reportData, output_filename: `${title.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.pdf` }),
-  });
+  const workerUrl = getWorkerUrl();
+  let response: Response;
+  try {
+    response = await fetch(`${workerUrl}/generate-pdf-report`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(60_000),
+      headers: { 'Content-Type': 'application/json', 'X-Worker-Key': workerKey },
+      body: JSON.stringify({ report_data: reportData, output_filename: `${title.replace(/[^a-z0-9-]/gi, '-').slice(0, 80)}.pdf` }),
+    });
+  } catch (error: any) {
+    const causeMsg = error?.cause?.message || error?.message || 'connection failed';
+    throw new Error(`Unable to reach Python worker at ${workerUrl}${causeMsg ? ` (${causeMsg})` : ''}`);
+  }
   if (!response.ok) throw new Error(`PDF worker returned HTTP ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 }

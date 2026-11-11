@@ -84,7 +84,11 @@ export async function generateText(args: {
           ],
         }),
       });
-      if (!response.ok) throw new Error(`OpenAI request failed (HTTP ${response.status})`);
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({})) as { error?: { message?: string } };
+        const detailedMsg = errJson.error?.message;
+        throw new Error(detailedMsg ? `OpenAI: ${detailedMsg}` : `OpenAI request failed (HTTP ${response.status})`);
+      }
       const data = await response.json() as Parameters<typeof extractOpenAIResponseText>[0];
       const output = extractOpenAIResponseText(data);
       if (!output) throw new Error('OpenAI returned an empty response');
@@ -106,7 +110,11 @@ export async function generateText(args: {
         messages: [{ role: 'user', content: args.user }],
       }),
     });
-    if (!response.ok) throw new Error(`Anthropic request failed (HTTP ${response.status})`);
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({})) as { error?: { message?: string } };
+      const detailedMsg = errJson.error?.message;
+      throw new Error(detailedMsg ? `Anthropic: ${detailedMsg}` : `Anthropic request failed (HTTP ${response.status})`);
+    }
     const data = await response.json() as { content?: Array<{ type: string; text?: string }> };
     const output = data.content?.filter((part) => part.type === 'text').map((part) => part.text || '').join('\n').trim();
     if (!output) throw new Error('Anthropic returned an empty response');
@@ -130,7 +138,11 @@ export async function testProviderConnection(providerValue: string, apiKey: stri
     : { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' };
   if (model && model.length > 120) throw new Error('Model name is too long');
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(20_000) });
-  if (!response.ok) throw new Error(`${providerValue} rejected the API key (HTTP ${response.status})`);
+  if (!response.ok) {
+    const errJson = await response.json().catch(() => ({})) as { error?: { message?: string } };
+    const detailedMsg = errJson.error?.message;
+    throw new Error(detailedMsg ? `${providerValue}: ${detailedMsg}` : `${providerValue} rejected the API key (HTTP ${response.status})`);
+  }
   if (model) {
     const payload = await response.json().catch(() => null) as { data?: Array<{ id?: string }> } | null;
     const availableModels = payload?.data?.map((item) => item.id).filter((id): id is string => Boolean(id));
