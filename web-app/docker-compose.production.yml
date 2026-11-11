@@ -1,0 +1,113 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_marketing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a random POSTGRES_PASSWORD in web-app/.env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_marketing"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  python-worker:
+    build:
+      context: ./python-worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      - ../scripts:/repo/scripts:ro
+    environment:
+      SCRIPTS_DIR: /repo/scripts
+      WORKER_API_KEY: ${WORKER_API_KEY:?Set a random WORKER_API_KEY in web-app/.env}
+      REPORT_OUTPUT_DIR: /tmp/aiscripto-reports
+      PYTHONUNBUFFERED: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ..
+      dockerfile: web-app/backend/Dockerfile.production
+    restart: unless-stopped
+    expose:
+      - "3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/ai_marketing
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in web-app/.env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in web-app/.env}
+      WORKER_API_KEY: ${WORKER_API_KEY:?Set WORKER_API_KEY in web-app/.env}
+      PYTHON_WORKER_URL: http://python-worker:8000
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL to the public app origin}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-${FRONTEND_URL:?Set FRONTEND_URL to the public app origin}}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      SMTP_URL: ${SMTP_URL:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DEFAULT_AI_PROVIDER: ${DEFAULT_AI_PROVIDER:-openai}
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-gpt-4.1}
+      SKILLS_ROOT: /repo/skills
+      AGENTS_ROOT: /repo/agents
+      TEMPLATES_ROOT: /repo/templates
+      MARKET_ROOT: /repo/market
+    volumes:
+      - ../skills:/repo/skills:ro
+      - ../agents:/repo/agents:ro
+      - ../templates:/repo/templates:ro
+      - ../market:/repo/market:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      python-worker:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node dist/index.js"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+      args:
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -10,9 +10,9 @@ import json
 import re
 import urllib.request
 import urllib.error
-import ssl
 from html.parser import HTMLParser
 from urllib.parse import urlparse
+from url_safety import fetch_public_text, normalize_public_url
 
 
 class CompetitorPageParser(HTMLParser):
@@ -174,27 +174,20 @@ class CompetitorPageParser(HTMLParser):
 
 def fetch_page(url):
     """Fetch a webpage."""
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-        "Accept": "text/html,application/xhtml+xml",
-    }
-
-    req = urllib.request.Request(url, headers=headers)
     try:
-        response = urllib.request.urlopen(req, timeout=15, context=ctx)
-        return response.read().decode("utf-8", errors="replace")
-    except:
+        return fetch_public_text(url, "AIScriptoCompetitorScanner/1.0", timeout=15)
+    except urllib.error.HTTPError:
+        return None
+    except (urllib.error.URLError, TimeoutError, OSError):
         return None
 
 
 def scan_competitor(url):
     """Scan a competitor website."""
-    if not url.startswith("http"):
-        url = "https://" + url
+    try:
+        url = normalize_public_url(url)
+    except ValueError as e:
+        return {"url": url, "status": "error", "message": str(e)}
 
     parsed = urlparse(url)
     domain = parsed.netloc.replace("www.", "")
@@ -214,9 +207,9 @@ def scan_competitor(url):
     parser = CompetitorPageParser()
     try:
         parser.feed(html)
-    except:
+    except Exception as e:
         result["status"] = "error"
-        result["message"] = "Could not parse page"
+        result["message"] = f"Could not parse page: {e}"
         return result
 
     result["data"] = parser.get_results()

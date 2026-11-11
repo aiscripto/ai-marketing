@@ -1,0 +1,41 @@
+{
+  "world": "Crouwel evidence grid",
+  "mode": "operate",
+  "tokens": {
+    "color": {
+      "canvas": "#F5F6F7",
+      "surface": "#FFFFFF",
+      "ink": "#17212B",
+      "secondaryInk": "#53616E",
+      "rule": "#D9DEE4",
+      "primary": "#344FC4",
+      "selection": "#E9EDFF",
+      "success": "#1B6D4A",
+      "warning": "#805500",
+      "error": "#A3312B",
+      "darkCanvas": "#11161B",
+      "darkSurface": "#1A2229",
+      "darkInk": "#F2F5F7",
+      "darkSecondaryInk": "#B6C0C9",
+      "darkRule": "#3A454F",
+      "darkPrimary": "#A7B6FF"
+    },
+    "type": {
+      "ui": "IBM Plex Sans Variable",
+      "measurement": "IBM Plex Mono"
+    },
+    "spacing": {
+      "base": "4px",
+      "mobileGutter": "20px",
+      "desktopGutter": "40px"
+    },
+    "radius": {
+      "control": "8px",
+      "surface": "12px"
+    },
+    "elevation": {
+      "surface": "border",
+      "transient": "0 12px 32px rgb(16 25 37 / 0.12)"
+    }
+  }
+}

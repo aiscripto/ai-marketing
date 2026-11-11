@@ -2,9 +2,9 @@
   <img src="banner.svg" alt="AI Marketing Suite for Claude Code" width="100%">
 </p>
 
-# AI Marketing Suite for Claude Code
+# AI Marketing Suite
 
-A comprehensive marketing analysis and automation skill system for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Audit any website's marketing, generate copy, build email sequences, create content calendars, analyze competitors, and produce client-ready PDF reports — all from your terminal.
+AIScripto's marketing analysis and automation toolkit. The repository keeps the original [Claude Code workflows](https://docs.anthropic.com/en/docs/claude-code) and adds a web application in [`web-app/`](web-app/README.md). Audit websites, generate campaign content, analyze competitors, and prepare Markdown or PDF reports.
 
 **Built for entrepreneurs, agency builders, and solopreneurs who want to sell marketing services powered by AI.**
 
@@ -14,8 +14,10 @@ A comprehensive marketing analysis and automation skill system for [Claude Code]
 
 Type a command in Claude Code and get instant, actionable marketing analysis:
 
+*Illustrative output format; the scores below are not a current or verified audit of Calendly.*
+
 ```
-> /market audit https://calendly.com
+> /market audit https://example.com
 
 Launching 5 parallel agents...
 ✓ Content & Messaging Analysis     — Score: 72/100
@@ -32,19 +34,19 @@ Full report saved to MARKETING-AUDIT.md
 
 ---
 
-## Installation
+## Claude Code Installation
 
 ### One-Command Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zubair-trabzada/ai-marketing-claude/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aiscripto/ai-marketing/main/install.sh | bash
 ```
 
 ### Manual Install
 
 ```bash
-git clone https://github.com/zubair-trabzada/ai-marketing-claude.git
-cd ai-marketing-claude
+git clone https://github.com/aiscripto/ai-marketing.git
+cd ai-marketing
 ./install.sh
 ```
 
@@ -81,7 +83,7 @@ pip install reportlab
 ## Architecture
 
 ```
-ai-marketing-claude/
+ai-marketing/
 ├── market/SKILL.md                     # Main orchestrator (routes all /market commands)
 │
 ├── skills/                             # 14 sub-skills
@@ -124,7 +126,8 @@ ai-marketing-claude/
 ├── install.sh                          # One-command installer
 ├── uninstall.sh                        # Clean uninstaller
 ├── requirements.txt                    # Python dependencies
-└── LICENSE                             # MIT License
+├── LICENSE                             # MIT License
+└── web-app/                            # Web application, API, database, Python worker, and deployment docs
 ```
 
 ---

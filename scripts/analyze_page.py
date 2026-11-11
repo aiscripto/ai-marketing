@@ -10,9 +10,9 @@ import json
 import re
 import urllib.request
 import urllib.error
-import ssl
 from html.parser import HTMLParser
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
+from url_safety import fetch_public_text, normalize_public_url
 
 
 class MarketingPageParser(HTMLParser):
@@ -303,23 +303,15 @@ class MarketingPageParser(HTMLParser):
 
 def fetch_page(url):
     """Fetch a webpage and return its HTML content."""
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-    }
-
-    req = urllib.request.Request(url, headers=headers)
     try:
-        response = urllib.request.urlopen(req, timeout=15, context=ctx)
-        return response.read().decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as e:
+        return fetch_public_text(
+            url,
+            "AIScriptoMarketingScanner/1.0 (+https://www.aiscripto.com)",
+            timeout=15,
+        )
+    except urllib.error.HTTPError:
         return None
-    except Exception as e:
+    except (urllib.error.URLError, TimeoutError, OSError):
         return None
 
 
@@ -339,12 +331,7 @@ def fetch_sitemap(url):
     parsed = urlparse(url)
     sitemap_url = f"{parsed.scheme}://{parsed.netloc}/sitemap.xml"
     try:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        req = urllib.request.Request(sitemap_url, headers={"User-Agent": "MarketingBot/1.0"})
-        response = urllib.request.urlopen(req, timeout=10, context=ctx)
-        content = response.read().decode("utf-8", errors="replace")
+        content = fetch_public_text(sitemap_url, "AIScriptoMarketingScanner/1.0", timeout=10)
         # Count URLs in sitemap
         url_count = content.lower().count("<url>") or content.lower().count("<loc>")
         return {"exists": True, "url_count": url_count}
@@ -354,6 +341,10 @@ def fetch_sitemap(url):
 
 def analyze(url):
     """Run full marketing analysis on a URL."""
+    try:
+        url = normalize_public_url(url)
+    except ValueError as e:
+        return {"url": url, "status": "error", "message": str(e)}
     results = {"url": url, "status": "success"}
 
     # Fetch and parse main page
@@ -464,8 +455,6 @@ def main():
         return
 
     url = sys.argv[1]
-    if not url.startswith("http"):
-        url = "https://" + url
 
     results = analyze(url)
     print(json.dumps(results, indent=2, default=str))

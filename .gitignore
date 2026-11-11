@@ -35,6 +35,13 @@ Thumbs.db
 
 # Node
 node_modules/
+web-app/.env
+web-app/.env.*
+!web-app/.env.example
+web-app/**/.env
+web-app/backend/dist/
+web-app/frontend/dist/
+web-app/logs/
 
 # Temp
 *.tmp

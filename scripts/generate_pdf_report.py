@@ -10,6 +10,8 @@ Requires: reportlab (pip install reportlab)
 import sys
 import json
 import os
+import re
+from xml.sax.saxutils import escape
 from datetime import datetime
 
 try:
@@ -195,13 +197,15 @@ def generate_report(data, output_path):
     elements.append(Spacer(1, 0.5 * inch))
 
     # Overall score gauge
-    overall_score = data.get("overall_score", 0)
-    gauge = draw_score_gauge(overall_score, 0, 0, size=100)
-    elements.append(gauge)
-    elements.append(Spacer(1, 0.3 * inch))
-
-    grade = "A+" if overall_score >= 90 else "A" if overall_score >= 80 else "B" if overall_score >= 70 else "C" if overall_score >= 60 else "D" if overall_score >= 50 else "F"
-    elements.append(Paragraph(f"Overall Marketing Score: {int(overall_score)}/100 (Grade: {grade})", heading_style))
+    overall_score = data.get("overall_score")
+    if isinstance(overall_score, (int, float)):
+        gauge = draw_score_gauge(overall_score, 0, 0, size=100)
+        elements.append(gauge)
+        elements.append(Spacer(1, 0.3 * inch))
+        grade = "A+" if overall_score >= 90 else "A" if overall_score >= 80 else "B" if overall_score >= 70 else "C" if overall_score >= 60 else "D" if overall_score >= 50 else "F"
+        elements.append(Paragraph(f"Overall Marketing Score: {int(overall_score)}/100 (Grade: {grade})", heading_style))
+    else:
+        elements.append(Paragraph("Overall Marketing Score: Not available", heading_style))
 
     exec_summary = data.get("executive_summary", "This report provides a comprehensive analysis of the website's marketing effectiveness across content, conversion, SEO, competitive positioning, brand trust, and growth strategy.")
     elements.append(Paragraph(exec_summary, body_style))
@@ -212,39 +216,35 @@ def generate_report(data, output_path):
     elements.append(Paragraph("Score Breakdown", heading_style))
 
     categories = data.get("categories", {})
-    cat_names = list(categories.keys()) if categories else [
-        "Content & Messaging", "Conversion Optimization", "SEO & Discoverability",
-        "Competitive Positioning", "Brand & Trust", "Growth & Strategy"
-    ]
-    cat_scores = [categories.get(c, {}).get("score", 50) for c in cat_names] if categories else [65, 58, 72, 55, 68, 60]
+    cat_names = list(categories.keys())
+    cat_scores = [categories[c].get("score") for c in cat_names]
+    if cat_names:
+        chart = create_bar_chart(cat_names, cat_scores)
+        elements.append(chart)
+        elements.append(Spacer(1, 0.3 * inch))
 
-    # Bar chart
-    chart = create_bar_chart(cat_names, cat_scores)
-    elements.append(chart)
-    elements.append(Spacer(1, 0.3 * inch))
+        score_data = [["Category", "Score", "Weight", "Status"]]
+        for name, score in zip(cat_names, cat_scores):
+            weight = categories[name].get("weight", "—")
+            status = "Strong" if score >= 75 else "Needs Work" if score >= 50 else "Critical"
+            score_data.append([name, f"{int(score)}/100", weight, status])
 
-    # Score table
-    score_data = [["Category", "Score", "Weight", "Status"]]
-    weights = ["25%", "20%", "20%", "15%", "10%", "10%"]
-    for i, (name, score) in enumerate(zip(cat_names, cat_scores)):
-        status = "Strong" if score >= 75 else "Needs Work" if score >= 50 else "Critical"
-        weight = weights[i] if i < len(weights) else "—"
-        score_data.append([name, f"{int(score)}/100", weight, status])
-
-    score_table = Table(score_data, colWidths=[180, 70, 60, 90])
-    score_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), COLORS["primary"]),
-        ("TEXTCOLOR", (0, 0), (-1, 0), COLORS["white"]),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-        ("GRID", (0, 0), (-1, -1), 0.5, COLORS["border"]),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [COLORS["white"], COLORS["light_bg"]]),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(score_table)
+        score_table = Table(score_data, colWidths=[180, 70, 60, 90])
+        score_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), COLORS["primary"]),
+            ("TEXTCOLOR", (0, 0), (-1, 0), COLORS["white"]),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+            ("GRID", (0, 0), (-1, -1), 0.5, COLORS["border"]),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [COLORS["white"], COLORS["light_bg"]]),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(score_table)
+    else:
+        elements.append(Paragraph("No scorecard data was provided for this report.", body_style))
 
     elements.append(PageBreak())
 
@@ -253,14 +253,7 @@ def generate_report(data, output_path):
 
     findings = data.get("findings", [])
     if not findings:
-        findings = [
-            {"severity": "Critical", "finding": "Homepage headline lacks clarity — visitors can't understand the value proposition in under 5 seconds"},
-            {"severity": "High", "finding": "No social proof on homepage — missing testimonials, client logos, and trust badges"},
-            {"severity": "High", "finding": "Primary CTA uses generic text ('Get Started') instead of value-driven copy"},
-            {"severity": "Medium", "finding": "Missing meta descriptions on key landing pages"},
-            {"severity": "Medium", "finding": "No email capture mechanism or lead magnet visible"},
-            {"severity": "Low", "finding": "Blog content lacks internal linking to product pages"},
-        ]
+        elements.append(Paragraph("No findings were supplied for this report.", body_style))
 
     findings_data = [["Severity", "Finding"]]
     for f in findings:
@@ -301,12 +294,7 @@ def generate_report(data, output_path):
 
     # Quick Wins
     elements.append(Paragraph("Quick Wins (This Week)", subheading_style))
-    quick_wins = data.get("quick_wins", [
-        "Rewrite homepage headline to be specific and benefit-driven",
-        "Add 3-5 client logos or trust badges above the fold",
-        "Change primary CTA to value-driven text (e.g., 'Start Free Trial — No Credit Card')",
-        "Add meta descriptions to top 5 landing pages",
-    ])
+    quick_wins = data.get("quick_wins", [])
     for i, win in enumerate(quick_wins, 1):
         elements.append(Paragraph(f"{i}. {win}", body_style))
 
@@ -314,12 +302,7 @@ def generate_report(data, output_path):
 
     # Medium-Term
     elements.append(Paragraph("Medium-Term (1-3 Months)", subheading_style))
-    medium_term = data.get("medium_term", [
-        "Build email capture funnel with lead magnet",
-        "Create comparison pages for top 3 competitors",
-        "Develop 3 case studies with measurable results",
-        "Implement blog content strategy targeting high-intent keywords",
-    ])
+    medium_term = data.get("medium_term", [])
     for i, action in enumerate(medium_term, 1):
         elements.append(Paragraph(f"{i}. {action}", body_style))
 
@@ -327,12 +310,7 @@ def generate_report(data, output_path):
 
     # Strategic
     elements.append(Paragraph("Strategic (3-6 Months)", subheading_style))
-    strategic = data.get("strategic", [
-        "Launch referral program with incentive structure",
-        "Build content authority hub with pillar content",
-        "Implement full-funnel retargeting campaign",
-        "Develop pricing optimization based on value metrics",
-    ])
+    strategic = data.get("strategic", [])
     for i, action in enumerate(strategic, 1):
         elements.append(Paragraph(f"{i}. {action}", body_style))
 
@@ -406,9 +384,31 @@ def generate_report(data, output_path):
 
     elements.append(Spacer(1, 0.5 * inch))
     elements.append(Paragraph(
-        "Generated by AI Marketing Suite for Claude Code",
+        "AIScripto AI Marketing Suite",
         ParagraphStyle("Footer", parent=body_style, fontSize=8, textColor=COLORS["text_light"])
     ))
+
+    full_report = data.get("full_report", "")
+    if full_report:
+        elements.append(PageBreak())
+        elements.append(Paragraph("Detailed Report", heading_style))
+        for raw_line in str(full_report).splitlines():
+            line = raw_line.strip()
+            if not line:
+                elements.append(Spacer(1, 5))
+                continue
+            if line.startswith("|") or set(line) <= {"|", "-", ":", " "}:
+                continue
+            if line.startswith("#"):
+                text = escape(line.lstrip("# "))
+                elements.append(Paragraph(text, subheading_style if len(line) < 4 else heading_style))
+                continue
+            if line.startswith(("- ", "* ")):
+                line = "• " + line[2:]
+            text = escape(line)
+            text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+            text = text.replace("`", "")
+            elements.append(Paragraph(text, body_style))
 
     # Build PDF
     doc.build(elements)
@@ -417,59 +417,8 @@ def generate_report(data, output_path):
 
 def main():
     if len(sys.argv) < 2:
-        # Demo mode — generate sample report
-        sample_data = {
-            "url": "https://example.com",
-            "date": datetime.now().strftime("%B %d, %Y"),
-            "overall_score": 62,
-            "executive_summary": "This marketing audit reveals several high-impact opportunities to improve conversion rates and strengthen competitive positioning. The website has solid content foundations but is underperforming in conversion optimization and competitive awareness.",
-            "categories": {
-                "Content & Messaging": {"score": 68, "weight": "25%"},
-                "Conversion Optimization": {"score": 52, "weight": "20%"},
-                "SEO & Discoverability": {"score": 74, "weight": "20%"},
-                "Competitive Positioning": {"score": 48, "weight": "15%"},
-                "Brand & Trust": {"score": 70, "weight": "10%"},
-                "Growth & Strategy": {"score": 55, "weight": "10%"},
-            },
-            "findings": [
-                {"severity": "Critical", "finding": "Homepage headline is generic — doesn't communicate specific value to target audience"},
-                {"severity": "Critical", "finding": "No social proof visible above the fold on the homepage"},
-                {"severity": "High", "finding": "Primary CTA button says 'Submit' — should use value-driven text"},
-                {"severity": "High", "finding": "Pricing page lacks comparison features and doesn't address objections"},
-                {"severity": "Medium", "finding": "Missing competitor comparison pages — losing high-intent search traffic"},
-                {"severity": "Medium", "finding": "Blog posts have no internal links to product pages"},
-                {"severity": "Low", "finding": "Social media links in footer but no social proof integration"},
-            ],
-            "quick_wins": [
-                "Rewrite homepage headline: 'We help businesses grow' → 'Get 3x more qualified leads in 30 days — without cold calling'",
-                "Add 5 client logos above the fold with 'Trusted by 500+ companies' text",
-                "Change form button from 'Submit' to 'Get My Free Marketing Audit'",
-                "Add testimonial section with name, photo, company, and specific results",
-            ],
-            "medium_term": [
-                "Build '[Competitor] Alternative' landing pages for top 3 competitors",
-                "Create 3 video case studies showing measurable client results",
-                "Implement exit-intent popup with lead magnet offer",
-                "Launch email nurture sequence for leads who don't convert immediately",
-            ],
-            "strategic": [
-                "Develop content authority hub with 10 pillar pages targeting high-volume keywords",
-                "Build referral program with double-sided incentives",
-                "Launch retargeting campaigns across Meta and Google with funnel-based messaging",
-                "Create free tool or assessment to capture leads at top of funnel",
-            ],
-            "competitors": [
-                {"name": "Comp A", "positioning": "All-in-one platform", "pricing": "$49-199/mo", "social_proof": "10K+ users", "content": "Active blog"},
-                {"name": "Comp B", "positioning": "Enterprise focus", "pricing": "Custom", "social_proof": "Fortune 500 logos", "content": "Whitepapers"},
-                {"name": "Comp C", "positioning": "Budget-friendly", "pricing": "Free-$29/mo", "social_proof": "4.8★ G2", "content": "YouTube channel"},
-            ],
-            "brand_name": "Example Co"
-        }
-
-        output = "MARKETING-REPORT-sample.pdf"
-        generate_report(sample_data, output)
-        print(f"Sample report generated: {output}")
-        return
+        print("Usage: python3 generate_pdf_report.py <report.json> [output.pdf]", file=sys.stderr)
+        sys.exit(2)
 
     # JSON input mode
     input_file = sys.argv[1]

@@ -1,0 +1,431 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String
+  firstName         String
+  lastName          String
+  avatarUrl         String?
+  theme             String   @default("light")
+  notificationPreferences Json @default("{}")
+  tokenVersion      Int      @default(0)
+  isEmailVerified   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  workspaceMembers  WorkspaceMember[]
+  activityLogs      ActivityLog[]
+  notifications     Notification[]
+  passwordResets    PasswordReset[]
+  sentInvitations   WorkspaceInvitation[]
+  createdTasks      MarketingTask[]
+  
+  @@map("users")
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  plan        String   @default("free")
+  aiProvider  String   @default("openai")
+  companyName String?
+  websiteUrl  String?
+  industry    String?
+  targetAudience String?
+  markets     String[] @default([])
+  brandVoice  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  members     WorkspaceMember[]
+  projects    Project[]
+  integrations Integration[]
+  apiConfigs  ApiConfiguration[]
+  reports     Report[]
+  proposals   Proposal[]
+  activityLogs ActivityLog[]
+  invitations WorkspaceInvitation[]
+  agentConfigs AgentConfiguration[]
+  
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("member") // super_admin, owner, admin, marketing_manager, analyst, viewer
+  invitedAt   DateTime @default(now())
+  joinedAt    DateTime?
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model Project {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  name            String
+  description     String?
+  websiteUrl      String?
+  companyName     String?
+  industry        String?
+  targetAudience  String?
+  markets         String[] @default([])
+  brandVoice      String?
+  objectives      String?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitors     Competitor[]
+  tasks           MarketingTask[]
+  reports         Report[]
+  proposals       Proposal[]
+  documents       ProjectDocument[]
+  
+  @@map("projects")
+}
+
+model Competitor {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  url       String
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("competitors")
+}
+
+model ProjectDocument {
+  id            String   @id @default(cuid())
+  projectId     String
+  fileName      String
+  mediaType     String
+  sizeBytes     Int
+  extractedText String   @db.Text
+  createdAt     DateTime @default(now())
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("project_documents")
+}
+
+model MarketingTask {
+  id          String   @id @default(cuid())
+  projectId   String
+  createdById String?
+  type        String   // audit, quick, copy, emails, social, ads, funnel, competitors, landing, launch, proposal, report, report-pdf, seo, brand
+  title       String
+  status      String   @default("pending") // pending, running, completed, failed, cancelled
+  inputData   Json
+  resultData  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy   User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  executions  Execution[]
+  report      Report?
+  auditResult AuditResult?
+  contentCalendar ContentCalendar?
+  emailCampaign EmailCampaign?
+  adCampaign AdCampaign?
+  proposal Proposal?
+  
+  @@map("marketing_tasks")
+}
+
+model Execution {
+  id              String   @id @default(cuid())
+  taskId          String
+  status          String   @default("running") // running, completed, failed, cancelled
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  durationMs      Int?
+  logs            Json     @default("[]")
+  errorMessage    String?
+  
+  task            MarketingTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  agentExecutions AgentExecution[]
+  executionLogs   ExecutionLog[]
+  
+  @@map("executions")
+}
+
+model ExecutionLog {
+  id          String   @id @default(cuid())
+  executionId String
+  level       String   @default("info")
+  agentName   String?
+  message     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId, createdAt])
+  @@map("execution_logs")
+}
+
+model AgentExecution {
+  id          String   @id @default(cuid())
+  executionId String
+  agentName   String   // content, conversion, competitive, technical, strategy
+  status      String   @default("pending") // pending, running, completed, failed
+  startedAt   DateTime?
+  completedAt DateTime?
+  score       Float?
+  findings    Json?
+  rawOutput   String?  @db.Text
+  errorMsg    String?
+  
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  
+  @@map("agent_executions")
+}
+
+model AuditResult {
+  id                    String   @id @default(cuid())
+  taskId                String   @unique
+  overallScore          Float?
+  contentScore          Float?
+  conversionScore       Float?
+  seoScore              Float?
+  competitiveScore      Float?
+  brandScore            Float?
+  growthScore           Float?
+  executiveSummary      String   @db.Text
+  strengths             Json     @default("[]")
+  weaknesses            Json     @default("[]")
+  criticalIssues        Json     @default("[]")
+  recommendations       Json     @default("[]")
+  implementationRoadmap Json     @default("[]")
+  rawFindings           Json
+  createdAt             DateTime @default(now())
+
+  task                  MarketingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@map("audit_results")
+}
+
+model ContentCalendar {
+  id        String   @id @default(cuid())
+  taskId    String   @unique
+  topic     String
+  brand     String?
+  platforms String[]
+  startDate DateTime
+  endDate   DateTime
+  items     ContentItem[]
+  createdAt DateTime @default(now())
+
+  task      MarketingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@map("content_calendars")
+}
+
+model ContentItem {
+  id            String   @id @default(cuid())
+  calendarId    String
+  day           Int
+  date          DateTime
+  platform      String
+  contentPillar String
+  format        String
+  title         String?
+  content       String   @db.Text
+  hashtags      String[]
+  cta           String?
+  status        String   @default("draft") // draft, scheduled, published
+  
+  calendar      ContentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  
+  @@map("content_items")
+}
+
+model EmailCampaign {
+  id          String   @id @default(cuid())
+  taskId      String   @unique
+  type        String   // welcome, nurture, launch
+  subject     String
+  emails      Json     // Array of email objects
+  createdAt   DateTime @default(now())
+
+  task        MarketingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@map("email_campaigns")
+}
+
+model AdCampaign {
+  id          String   @id @default(cuid())
+  taskId      String   @unique
+  objective   String
+  platforms   Json     // Platform-specific ad sets
+  createdAt   DateTime @default(now())
+
+  task        MarketingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@map("ad_campaigns")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  taskId      String?  @unique
+  title       String
+  type        String   // markdown, pdf, audit, seo, brand, etc.
+  content     String?  @db.Text
+  filePath    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        MarketingTask? @relation(fields: [taskId], references: [id])
+  
+  @@map("reports")
+}
+
+model Integration {
+  id          String   @id @default(cuid())
+  workspaceId String
+  provider    String   // openai, anthropic, google_analytics, google_search_console, etc.
+  status      String   @default("disconnected") // connected, disconnected, error
+  config      Json?    // Non-secret config (scopes, account IDs, etc.)
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([workspaceId, provider])
+  @@map("integrations")
+}
+
+model ApiConfiguration {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  provider     String   // openai, anthropic
+  encryptedKey String   // Encrypted API key
+  model        String?  // Default model to use
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@unique([workspaceId, provider])
+  @@map("api_configurations")
+}
+
+model AgentConfiguration {
+  id          String   @id @default(cuid())
+  workspaceId String
+  agentName   String
+  additionalInstructions String? @db.Text
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, agentName])
+  @@map("agent_configurations")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  userId      String?
+  action      String
+  resource    String?
+  resourceId  String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  
+  user        User? @relation(fields: [userId], references: [id])
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  @@map("activity_logs")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info") // info, success, warning, error
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("password_resets")
+}
+
+model WorkspaceInvitation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  invitedById String
+  email       String
+  role        String
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, email])
+  @@map("workspace_invitations")
+}
+
+model Proposal {
+  id          String   @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  taskId      String?  @unique
+  title       String
+  clientName  String
+  content     String   @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task        MarketingTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@map("proposals")
+}
