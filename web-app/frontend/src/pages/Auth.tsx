@@ -51,7 +51,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         window.setTimeout(() => navigate('/login'), 900)
       }
     } catch (cause: any) {
-      setError(cause?.response?.data?.error || 'That request could not be completed. Check the details and try again.')
+      const data = cause?.response?.data
+      const detailMsg = data?.details?.[0]?.msg
+      setError(detailMsg ? `${data.error}: ${detailMsg}` : (data?.error || 'That request could not be completed. Check the details and try again.'))
     } finally {
       setBusy(false)
     }
@@ -79,7 +81,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           </div>}
           {mode === 'register' && <label className="form-field"><span className="field-label">Workspace name</span><Input required autoComplete="organization" value={values.workspaceName} onChange={update('workspaceName')} maxLength={120} placeholder="e.g. Northstar Studio" /></label>}
           {['login', 'register', 'forgot'].includes(mode) && <label className="form-field"><span className="field-label">Email address</span><span className="input-icon-wrap"><Mail size={15} /><Input required type="email" autoComplete="email" value={values.email} onChange={update('email')} maxLength={254} placeholder="you@company.com" /></span></label>}
-          {['login', 'register', 'reset'].includes(mode) && <label className="form-field"><span className="field-label">{mode === 'login' ? 'Password' : 'Password'}</span><span className="input-icon-wrap"><LockKeyhole size={15} /><Input required type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={values.password} onChange={update('password')} minLength={mode === 'login' ? 1 : 12} maxLength={200} placeholder={mode === 'login' ? 'Enter your password' : 'At least 12 characters'} /></span></label>}
+          {['login', 'register', 'reset'].includes(mode) && <label className="form-field"><span className="field-label">{mode === 'login' ? 'Password' : 'Password'}</span><span className="input-icon-wrap"><LockKeyhole size={15} /><Input required type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={values.password} onChange={update('password')} minLength={mode === 'login' ? 1 : 8} maxLength={200} placeholder={mode === 'login' ? 'Enter your password' : 'At least 8 characters'} /></span></label>}
           {mode === 'login' && <div className="auth-aux-row"><span>Access is scoped to your selected workspace.</span><Link to="/forgot-password">Forgot password?</Link></div>}
           {mode === 'reset' && !searchParams.get('token') && <Notice kind="error">This reset link is missing its token. Request a new link.</Notice>}
           <FormError message={error} />
@@ -128,7 +130,7 @@ export function InvitationPage() {
     <div className="auth-form-wrap"><header><h2>Join the workspace</h2><p>{existing ? 'Enter the current password for your existing account to accept this invitation.' : 'Create your account to join your team’s private marketing workspace.'}</p></header>
       <form className="auth-form" onSubmit={submit}>
         {!existing && <div className="form-row"><label className="form-field"><span className="field-label">First name</span><Input required value={values.firstName} onChange={(event) => setValues({ ...values, firstName: event.target.value })} /></label><label className="form-field"><span className="field-label">Last name</span><Input required value={values.lastName} onChange={(event) => setValues({ ...values, lastName: event.target.value })} /></label></div>}
-        <label className="form-field"><span className="field-label">{existing ? 'Current account password' : 'Create password'}</span><Input required type="password" minLength={12} maxLength={200} autoComplete={existing ? 'current-password' : 'new-password'} value={values.password} onChange={(event) => setValues({ ...values, password: event.target.value })} /></label>
+        <label className="form-field"><span className="field-label">{existing ? 'Current account password' : 'Create password'}</span><Input required type="password" minLength={8} maxLength={200} autoComplete={existing ? 'current-password' : 'new-password'} value={values.password} onChange={(event) => setValues({ ...values, password: event.target.value })} /></label>
         <FormError message={error} />
         <Button variant="primary" type="submit" loading={busy} disabled={!searchParams.get('token')}>Accept invitation <ArrowRight size={15} /></Button>
       </form>

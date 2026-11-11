@@ -48,7 +48,7 @@ app.get('/api/v1/health', (_req, res) => res.json({ status: 'ok', timestamp: new
 
 app.use('/api/v1/auth', rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 25,
+  limit: 200,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts. Try again shortly.' },

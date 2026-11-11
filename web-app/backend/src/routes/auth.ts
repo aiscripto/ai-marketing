@@ -12,7 +12,7 @@ import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth';
 const router = Router();
 const passwordRule = body('password')
   .isString().withMessage('Password is required')
-  .isLength({ min: 12, max: 200 }).withMessage('Password must be between 12 and 200 characters');
+  .isLength({ min: 8, max: 200 }).withMessage('Password must be between 8 and 200 characters');
 
 router.post('/register', [
   body('email').isEmail().withMessage('Enter a valid email address'),
