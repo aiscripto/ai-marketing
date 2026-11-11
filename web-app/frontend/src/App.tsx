@@ -21,6 +21,7 @@ const ReportDetailPage = lazy(() => import('./pages/Reports').then((module) => (
 const AgentsPage = lazy(() => import('./pages/Workspace').then((module) => ({ default: module.AgentsPage })))
 const IntegrationsPage = lazy(() => import('./pages/Workspace').then((module) => ({ default: module.IntegrationsPage })))
 const SettingsPage = lazy(() => import('./pages/Workspace').then((module) => ({ default: module.SettingsPage })))
+const InboxPage = lazy(() => import('./pages/Inbox').then((module) => ({ default: module.InboxPage })))
 const TeamPage = lazy(() => import('./pages/Workspace').then((module) => ({ default: module.TeamPage })))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Suspense fallback={<div className="app-loading"><div className="loading-block">Loading workspace</div></div>}><Routes>
+  return <Suspense fallback={<div className="app-loading"><div className="loading-block" role="status"><span className="loading-orb" />Loading workspace</div></div>}><Routes>
     <Route path="/" element={<Navigate to={localStorage.getItem('auth_token') ? '/app' : '/login'} replace />} />
     <Route path="/login" element={<AuthPage mode="login" />} />
     <Route path="/register" element={<AuthPage mode="register" />} />
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="integrations" element={<IntegrationsPage />} />
       <Route path="settings" element={<SettingsPage />} />
       <Route path="team" element={<TeamPage />} />
+      <Route path="inbox" element={<InboxPage />} />
       <Route path="seo" element={<Navigate to="/app/tools/seo" replace />} />
       <Route path="competitors" element={<Navigate to="/app/tools/competitors" replace />} />
       <Route path="campaigns" element={<Navigate to="/app/tools/ads" replace />} />

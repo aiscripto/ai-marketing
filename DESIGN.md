@@ -20,15 +20,19 @@ The assigned visual world is a typographic evidence grid: measured columns, shar
 - **Alternate:** Annual report plates use a quieter editorial spread for audit reading, with client-ready evidence and annotations as the lead composition.
 - **Standing alternative:** a familiar marketing SaaS workspace follows the supplied Linear, HubSpot, and Semrush references with standard product navigation, tables, filters, and tool forms.
 
-## Tokens
+## Tokens — premium 3D dashboard (current)
 
-- Light canvas: `#F5F6F7`; surface: `#FFFFFF`; ink: `#17212B`; secondary ink: `#53616E`; rule: `#D9DEE4`.
-- Primary action and selection: `#344FC4`; subtle selection: `#E9EDFF`; confirmed: `#1B6D4A`; caution: `#805500`; error: `#A3312B`.
-- Dark canvas: `#11161B`; surface: `#1A2229`; ink: `#F2F5F7`; secondary ink: `#B6C0C9`; rule: `#3A454F`; primary: `#A7B6FF`.
-- UI type: IBM Plex Sans Variable. Measurement and code: IBM Plex Mono. Self-host both through Fontsource.
-- Spacing follows a 4px base. Page gutters grow from 20px on mobile to 40px on wide screens. Compact controls use 8px radii; major work surfaces use 12px radii.
-- Use a single 1px rule for separation. Elevation appears only on transient menus and dialogs, with a soft offset shadow.
-- Motion is limited to a short sidebar/drawer transition and live execution state changes. Content stays visible by default.
+The authenticated app now follows a premium, 3D-inspired SaaS dashboard language: soft lavender canvas, layered glass panels, purple-tinted depth, and lightweight SVG 3D illustrations. Data rules from this document still apply: every metric comes from the API.
+
+- Files: `src/styles/tokens.css` (all variables, light + dark) → `globals.css` (structure/layout) → `premium.css` (depth, glass, gradients, motion, dashboard and messaging compositions). Components never hard-code colors.
+- Palette: primary `#633BFA`, deep `#3510B8`, electric `#7B35FF`, lavender `#C7A8FF`, soft pink `#E8B6FF`, canvas `#F5F4FF`, surface `#FFFFFF`, ink `#17152B`, secondary ink `#6B6984` (darkened from `#77758E` for AA on small text; `#77758E` is used for captions), rule `#E9E6F5`. Semantic green/amber/rose remain for status.
+- Gradients (`--grad-primary`, `--grad-hero`, `--grad-dark-card`) are reserved for active navigation, primary buttons, the hero chart panel, avatars, and illustrations.
+- Elevation: `--shadow-xs … --shadow-lg`, `--shadow-glow`, plus `--inner-highlight`. Glass: `--glass-bg`, `--glass-strong`, `--glass-blur`.
+- Shape: radii 8/12/16/20/24px; cards use 20px, hero panels 24px. Spacing on a 4px scale (`--space-*`).
+- Type: Plus Jakarta Sans Variable for UI and numerals (tabular figures); IBM Plex Mono only for logs and code.
+- Components: `Card` (surface / glass / hero, optional `tilt`), `Skeleton`, `ProgressRing`, `MiniBars`, `TrendBadge`, `Avatar` in `components/ui.tsx`; SVG illustrations (`GlassCube`, `BarStack`, `AgentOrb`, `ChatBubbles`, `DocStack`, `Prism`) in `components/Illustrations.tsx`; `useTilt` in `lib/useTilt.ts`.
+- Motion: hover elevation, card tilt, chart and bar growth, message/bubble entrance, menu and dialog spring-in, slow ambient background drift. Everything decorative is disabled under `prefers-reduced-motion`, and tilt is disabled for touch pointers.
+- Messaging: the Inbox (`/app/inbox`) presents real notifications as conversations grouped by channel (completed, failed, needs review, workspace). The execution page renders the live SSE log as an agent conversation. There is no user-to-user chat backend; do not add composers that imply one.
 
 ## Surface brief: authenticated application
 

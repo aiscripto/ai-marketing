@@ -4,6 +4,7 @@ import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 import { BrandLogo } from '../components/BrandLogo'
+import { AgentOrb, BarStack, ChatBubbles, GlassCube } from '../components/Illustrations'
 import { Button, FormError, Input, Notice } from '../components/ui'
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
@@ -68,11 +69,17 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         <p>Projects, website evidence, AI workflows, and client-ready reports held together in one workspace.</p>
         <div className="auth-points"><span><ShieldCheck size={15} />Private workspace data</span><span><LockKeyhole size={15} />Provider keys stay server-side</span></div>
       </div>
+      <div className="auth-art" aria-hidden="true">
+        <BarStack className="auth-art-bars float-slow" size={190} />
+        <GlassCube className="auth-art-cube float-medium" size={120} hue="pink" />
+        <AgentOrb className="auth-art-orb float-fast" size={96} hue="indigo" />
+        <ChatBubbles className="auth-art-chat float-medium" size={92} />
+      </div>
       <span className="auth-side-foot">AIScripto · AI Marketing Suite</span>
     </aside>
     <section className="auth-main">
       <BrandLogo className="auth-main-brand" />
-      <div className="auth-form-wrap">
+      <div className="auth-form-wrap auth-card">
         <header><h2>{copy.title}</h2><p>{copy.description}</p></header>
         <form className="auth-form" onSubmit={submit}>
           {mode === 'register' && <div className="form-row">
@@ -127,7 +134,7 @@ export function InvitationPage() {
 
   return <main className="auth-page invitation-page"><section className="auth-main">
     <BrandLogo className="invitation-brand" />
-    <div className="auth-form-wrap"><header><h2>Join the workspace</h2><p>{existing ? 'Enter the current password for your existing account to accept this invitation.' : 'Create your account to join your team’s private marketing workspace.'}</p></header>
+    <div className="auth-form-wrap auth-card"><header><h2>Join the workspace</h2><p>{existing ? 'Enter the current password for your existing account to accept this invitation.' : 'Create your account to join your team’s private marketing workspace.'}</p></header>
       <form className="auth-form" onSubmit={submit}>
         {!existing && <div className="form-row"><label className="form-field"><span className="field-label">First name</span><Input required value={values.firstName} onChange={(event) => setValues({ ...values, firstName: event.target.value })} /></label><label className="form-field"><span className="field-label">Last name</span><Input required value={values.lastName} onChange={(event) => setValues({ ...values, lastName: event.target.value })} /></label></div>}
         <label className="form-field"><span className="field-label">{existing ? 'Current account password' : 'Create password'}</span><Input required type="password" minLength={8} maxLength={200} autoComplete={existing ? 'current-password' : 'new-password'} value={values.password} onChange={(event) => setValues({ ...values, password: event.target.value })} /></label>
