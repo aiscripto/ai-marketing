@@ -1,13 +1,14 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: ai_marketing_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ai_marketing
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a random POSTGRES_PASSWORD in web-app/.env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ai_marketing_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ai_marketing"]
       interval: 10s
@@ -16,10 +17,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: ai_marketing_redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
-      - redis_data:/data
+      - ai_marketing_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -30,6 +32,7 @@ services:
     build:
       context: ./python-worker
       dockerfile: Dockerfile
+    container_name: ai_marketing_worker
     restart: unless-stopped
     expose:
       - "8000"
@@ -50,9 +53,10 @@ services:
     build:
       context: ..
       dockerfile: web-app/backend/Dockerfile.production
+    container_name: ai_marketing_be
     restart: unless-stopped
-    expose:
-      - "3001"
+    ports:
+      - "3096:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -63,8 +67,8 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in web-app/.env}
       WORKER_API_KEY: ${WORKER_API_KEY:?Set WORKER_API_KEY in web-app/.env}
       PYTHON_WORKER_URL: http://python-worker:8000
-      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL to the public app origin}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-${FRONTEND_URL:?Set FRONTEND_URL to the public app origin}}
+      FRONTEND_URL: ${FRONTEND_URL:-http://161.97.110.121:3095}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://161.97.110.121:3095}
       TRUST_PROXY: ${TRUST_PROXY:-true}
       SMTP_URL: ${SMTP_URL:-}
       SMTP_FROM: ${SMTP_FROM:-}
@@ -101,13 +105,14 @@ services:
       dockerfile: Dockerfile.production
       args:
         VITE_API_URL: /api/v1
+    container_name: ai_marketing_fe
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "3095:8080"
     depends_on:
       backend:
         condition: service_healthy
 
 volumes:
-  postgres_data:
-  redis_data:
+  ai_marketing_pgdata:
+  ai_marketing_redis_data:
