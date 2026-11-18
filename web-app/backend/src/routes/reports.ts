@@ -118,17 +118,22 @@ router.get('/:id/pdf', async (req, res) => {
     ]));
     const recommendations = Array.isArray(metadata.recommendations) ? metadata.recommendations : [];
     const reportData: Record<string, unknown> = {
+      report_type: report.type || metadata.tool || 'audit',
+      title: report.title,
       brand_name: report.project?.companyName || report.project?.name || report.title,
-      url: metadata.verifiedEvidence?.websiteUrl || report.project?.websiteUrl || '',
+      url: metadata.verifiedEvidence?.websiteUrl || metadata.evidence?.website?.url || report.project?.websiteUrl || '',
       date: report.createdAt.toISOString().slice(0, 10),
-      overall_score: typeof metadata.overallScore === 'number' ? metadata.overallScore : null,
+      overall_score: typeof metadata.overallScore === 'number' ? metadata.overallScore : (typeof metadata.score === 'number' ? metadata.score : null),
       executive_summary: typeof metadata.overallScore === 'number'
         ? `${report.title} — weighted marketing score ${metadata.overallScore}/100.`
-        : `${report.title}. See the detailed report pages for the saved analysis and recommendations.`,
+        : `${report.title}. Delivered by AIScripto AI Marketing Suite.`,
       categories,
       findings: recommendations.map((item: any) => ({ severity: item.priority || 'Recommended', finding: item.recommendation || item.description || String(item) })),
       quick_wins: recommendations.slice(0, 5).map((item: any) => item.recommendation || item.description || String(item)),
       full_report: report.content || '',
+      structured: metadata.structured || metadata.findings || null,
+      agents: metadata.agents || null,
+      evidence: metadata.verifiedEvidence || metadata.evidence || null,
     };
     const pdf = await generatePdf(reportData, report.title);
     const safeName = report.title.replace(/[^a-z0-9-]/gi, '-').slice(0, 80) || 'marketing-report';

@@ -100,6 +100,117 @@ function recommendationsFrom(outcomes: Partial<Record<AuditAgentName, AgentOutco
   return recommendations;
 }
 
+function renderAgentMarkdown(agent: typeof agentDefinitions[number], outcome?: AgentOutcome): string {
+  if (!outcome?.output) {
+    return `### ${agent.label}\n\nStatus: ${outcome?.status || 'not run'}${outcome?.error ? ` — ${escapeMarkdown(outcome.error)}` : ''}.\n`;
+  }
+  const output = outcome.output;
+  const score = agentScore(agent.name, output);
+  const scoreBadge = score !== null ? `**Assessment Score:** ${score}/10` : '';
+  const lines: string[] = [`### ${agent.label}`, 'Status: completed', scoreBadge].filter(Boolean);
+
+  if (output.dimensionScores && typeof output.dimensionScores === 'object') {
+    lines.push('', '#### Dimension Breakdown', '| Dimension | Score | Finding |', '|---|---:|---|');
+    for (const [dim, val] of Object.entries(output.dimensionScores)) {
+      if (val && typeof val === 'object') {
+        const row = val as { score?: number; finding?: string };
+        const label = dim.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+        lines.push(`| ${escapeMarkdown(label)} | ${row.score ?? '—'}/10 | ${escapeMarkdown(row.finding || '—')} |`);
+      }
+    }
+  }
+
+  if (Array.isArray(output.topWins) && output.topWins.length) {
+    lines.push('', '#### Key Wins & Strengths');
+    for (const win of output.topWins) lines.push(`- ${escapeMarkdown(String(win))}`);
+  }
+
+  if (Array.isArray(output.criticalFixes) && output.criticalFixes.length) {
+    lines.push('', '#### Critical Fixes Needed', '| Issue | Recommendation |', '|---|---|');
+    for (const fix of output.criticalFixes) {
+      if (typeof fix === 'object' && fix) {
+        lines.push(`| ${escapeMarkdown(String(fix.issue || '—'))} | ${escapeMarkdown(String(fix.recommendation || '—'))} |`);
+      } else {
+        lines.push(`| Issue | ${escapeMarkdown(String(fix))} |`);
+      }
+    }
+  }
+
+  if (Array.isArray(output.beforeAfterRewrites) && output.beforeAfterRewrites.length) {
+    lines.push('', '#### Copywriting Rewrites (Before vs. After)');
+    for (const rw of output.beforeAfterRewrites) {
+      lines.push(`- **${escapeMarkdown(String(rw.element || rw.page || 'Element'))}**`);
+      lines.push(`  - *Before:* "${escapeMarkdown(String(rw.before || ''))}"`);
+      lines.push(`  - *After:* "${escapeMarkdown(String(rw.after || ''))}"`);
+      if (rw.why) lines.push(`  - *Rationale:* ${escapeMarkdown(String(rw.why))}`);
+    }
+  }
+
+  if (Array.isArray(output.funnelLeaks) && output.funnelLeaks.length) {
+    lines.push('', '#### Conversion Funnel Leaks', '| Stage | Severity | Issue | Recommended Fix |', '|---|---|---|---|');
+    for (const leak of output.funnelLeaks) {
+      lines.push(`| ${escapeMarkdown(String(leak.stage || '—'))} | ${escapeMarkdown(String(leak.severity || 'Medium'))} | ${escapeMarkdown(String(leak.issue || '—'))} | ${escapeMarkdown(String(leak.fix || '—'))} |`);
+    }
+  }
+
+  if (Array.isArray(output.quickCROWins) && output.quickCROWins.length) {
+    lines.push('', '#### Quick CRO Wins');
+    for (const win of output.quickCROWins) lines.push(`- ${escapeMarkdown(String(win))}`);
+  }
+
+  if (Array.isArray(output.abTestHypotheses) && output.abTestHypotheses.length) {
+    lines.push('', '#### A/B Testing Hypotheses', '| Hypothesis | Metric | Expected Impact |', '|---|---|---|');
+    for (const ab of output.abTestHypotheses) {
+      lines.push(`| ${escapeMarkdown(String(ab.hypothesis || '—'))} | ${escapeMarkdown(String(ab.metric || '—'))} | ${escapeMarkdown(String(ab.expectedImpact || '—'))} |`);
+    }
+  }
+
+  if (Array.isArray(output.competitorsIdentified) && output.competitorsIdentified.length) {
+    lines.push('', '#### Identified Competitors', '| Competitor | Category | Key Strength | Key Weakness |', '|---|---|---|---|');
+    for (const comp of output.competitorsIdentified) {
+      lines.push(`| ${escapeMarkdown(String(comp.name || '—'))} | ${escapeMarkdown(String(comp.category || '—'))} | ${escapeMarkdown(String(comp.keyStrength || '—'))} | ${escapeMarkdown(String(comp.keyWeakness || '—'))} |`);
+    }
+  }
+
+  if (Array.isArray(output.opportunities) && output.opportunities.length) {
+    lines.push('', '#### Strategic Opportunities');
+    for (const opp of output.opportunities) {
+      if (typeof opp === 'object' && opp) {
+        lines.push(`- **${escapeMarkdown(String(opp.name || 'Opportunity'))}:** ${escapeMarkdown(String(opp.description || ''))}`);
+      } else {
+        lines.push(`- ${escapeMarkdown(String(opp))}`);
+      }
+    }
+  }
+
+  if (Array.isArray(output.seoQuickWins) && output.seoQuickWins.length) {
+    lines.push('', '#### SEO Quick Wins');
+    for (const win of output.seoQuickWins) lines.push(`- ${escapeMarkdown(String(win))}`);
+  }
+
+  if (Array.isArray(output.technicalIssues) && output.technicalIssues.length) {
+    lines.push('', '#### Technical SEO Issues', '| Severity | Issue | Impact | Fix |', '|---|---|---|---|');
+    for (const iss of output.technicalIssues) {
+      lines.push(`| ${escapeMarkdown(String(iss.severity || 'Medium'))} | ${escapeMarkdown(String(iss.issue || '—'))} | ${escapeMarkdown(String(iss.impact || '—'))} | ${escapeMarkdown(String(iss.fix || '—'))} |`);
+    }
+  }
+
+  if (output.revenueOpportunities && typeof output.revenueOpportunities === 'object') {
+    lines.push('', '#### Revenue Growth Opportunities');
+    const ro = output.revenueOpportunities;
+    if (Array.isArray(ro.quickWins) && ro.quickWins.length) {
+      lines.push('**Immediate / Quick Wins:**');
+      for (const qw of ro.quickWins) lines.push(`- ${escapeMarkdown(String(qw.opportunity || qw))} (Effort: ${escapeMarkdown(String(qw.effort || 'Low'))}, Impact: ${escapeMarkdown(String(qw.expectedImpact || '—'))})`);
+    }
+    if (Array.isArray(ro.mediumTerm) && ro.mediumTerm.length) {
+      lines.push('**Medium-Term Growth Initiatives:**');
+      for (const mt of ro.mediumTerm) lines.push(`- ${escapeMarkdown(String(mt.opportunity || mt))} (Effort: ${escapeMarkdown(String(mt.effort || 'Medium'))}, Impact: ${escapeMarkdown(String(mt.expectedImpact || '—'))})`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 function renderAuditMarkdown(input: {
   companyName: string;
   url: string;
@@ -119,11 +230,7 @@ function renderAuditMarkdown(input: {
     const score = input.scores[key];
     return `| ${names[key]} | ${score === null ? 'Unavailable' : `${score}/100`} | ${Math.round(weight * 100)}% |`;
   }).join('\n');
-  const agentDetails = agentDefinitions.map((agent) => {
-    const outcome = input.outcomes[agent.name];
-    if (!outcome?.output) return `### ${agent.label}\n\nStatus: ${outcome?.status || 'not run'}${outcome?.error ? ` — ${escapeMarkdown(outcome.error)}` : ''}.`;
-    return `### ${agent.label}\n\nStatus: completed\n\n\`\`\`json\n${JSON.stringify(outcome.output, null, 2)}\n\`\`\``;
-  }).join('\n\n');
+  const agentDetails = agentDefinitions.map((agent) => renderAgentMarkdown(agent, input.outcomes[agent.name])).join('\n\n');
   const actions = input.recommendations.length
     ? input.recommendations.map((item, index) => `${index + 1}. **${escapeMarkdown(item.priority)} · ${escapeMarkdown(names[item.category] || item.category)}** — ${escapeMarkdown(item.recommendation)}`).join('\n')
     : 'No AI recommendations were returned.';
@@ -397,9 +504,10 @@ export async function runSpecialistAgent(taskId: string, executionId: string, wo
       prisma.agentExecution.update({ where: { id: executionAgent.id }, data: { status: 'completed', completedAt: new Date(), score, findings: asJsonValue(output), rawOutput } }),
       prisma.marketingTask.update({ where: { id: taskId }, data: { status: 'completed', resultData: asJsonValue(resultData) } }),
     ]);
+    const agentMarkdown = renderAgentMarkdown(agent, { status: 'completed', output, score: score ?? undefined });
     const report = await prisma.report.create({ data: {
       workspaceId, projectId, taskId, title: `${project.companyName || project.name} · ${agent.label}`,
-      type: 'agent', content: `# ${agent.label}\n\nWebsite: ${crawl.url}\n\n\`\`\`json\n${JSON.stringify(output, null, 2)}\n\`\`\`\n\n*Analysis output was generated by the configured AI provider. Crawl evidence is available in the structured result.*\n`,
+      type: 'agent', content: `# ${agent.label}\n\nWebsite: ${crawl.url}\n\n${agentMarkdown}\n\n*Analysis output was generated by the configured AI provider. Crawl evidence is available in the structured result.*\n`,
       metadata: asJsonValue(resultData),
     } });
     publishExecutionEvent(executionId, 'agent', { name: agent.name, label: agent.label, status: 'completed', score });

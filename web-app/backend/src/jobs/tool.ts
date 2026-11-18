@@ -52,6 +52,49 @@ function markdownFromSocialCalendar(items: Array<Record<string, any>>, topic: st
   return `# ${topic}: 30-Day Social Media Calendar\n\n${content}\n\n*Post copy was AI-generated from the project context. Review claims and brand voice before scheduling.*\n`;
 }
 
+function markdownFromAdCampaign(value: Record<string, any>) {
+  const lines: string[] = ['# Advertising Campaign Strategy & Creatives', ''];
+  if (value.objective) lines.push(`**Campaign Objective:** ${value.objective}`);
+  if (value.audience || value.targetAudience) lines.push(`**Target Audience:** ${value.audience || value.targetAudience}`);
+  lines.push('');
+
+  const platforms = value.platforms && typeof value.platforms === 'object' ? value.platforms : {};
+  for (const [platformName, platData] of Object.entries(platforms)) {
+    const pTitle = platformName.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+    lines.push(`## ${pTitle} Ad Creatives`, '');
+    if (typeof platData === 'object' && platData) {
+      const pObj = platData as Record<string, any>;
+      if (Array.isArray(pObj.headlines) && pObj.headlines.length) {
+        lines.push('### Headlines');
+        for (const h of pObj.headlines) lines.push(`- ${String(h)}`);
+        lines.push('');
+      }
+      if (Array.isArray(pObj.descriptions) && pObj.descriptions.length) {
+        lines.push('### Descriptions / Primary Copy');
+        for (const d of pObj.descriptions) lines.push(`- ${String(d)}`);
+        lines.push('');
+      }
+      if (Array.isArray(pObj.variations) && pObj.variations.length) {
+        lines.push('### Copy Variations');
+        for (const v of pObj.variations) {
+          if (typeof v === 'object' && v) {
+            lines.push(`- **${v.name || v.angle || 'Ad Variation'}:** ${v.copy || v.text || JSON.stringify(v)}`);
+          } else {
+            lines.push(`- ${String(v)}`);
+          }
+        }
+        lines.push('');
+      }
+      if (pObj.cta) lines.push(`**Recommended CTA:** ${pObj.cta}`, '');
+    } else {
+      lines.push(String(platData), '');
+    }
+  }
+
+  lines.push('*Draft only. Review and adjust ad copy, target demographics, and budgets before publishing.*', '');
+  return lines.join('\n');
+}
+
 function toDate(dateValue: unknown, day: number, startDate: Date): Date {
   if (typeof dateValue === 'string' && !Number.isNaN(Date.parse(dateValue))) return new Date(dateValue);
   return new Date(startDate.getTime() + (day - 1) * 24 * 60 * 60 * 1000);
@@ -225,7 +268,7 @@ export async function runMarketingTool(taskId: string, executionId: string, work
       platforms: asJsonValue(platforms),
     } });
     if (structured) structured.campaignId = campaign.id;
-    reportContent = `# Advertising Campaign Draft\n\n${JSON.stringify(structured, null, 2)}\n\n*Draft only. No campaign was published.*\n`;
+    reportContent = structured ? markdownFromAdCampaign(structured) : rawOutput;
   }
 
   if (tool === 'proposal') {
